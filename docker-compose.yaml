@@ -1,0 +1,67 @@
+version: '3.4'
+services:
+# Medic Storage Server - MSS
+  mss:
+    container_name: "mss"
+    image: postgres:latest
+    restart: always
+    volumes:
+      - mss:/var/lib/postgresql/data
+      - ./mss-init-scripts:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_MULTIPLE_DATABASES=${MSS_DBS_NAME}
+      - POSTGRES_USER=${MSS_DB_USER}
+      - POSTGRES_PASSWORD=${MSS_DB_PASS}
+    ports:
+      - ${MSS_PORT}:5432
+    expose:
+      - ${MSS_PORT}
+    networks:
+      - medic-network
+
+# Medic Authentication Server - MAS
+  mas:
+    container_name: "mas"
+    image: quay.io/keycloak/keycloak:legacy
+    restart: always
+    environment:
+      - DB_VENDOR=${MAS_DB_VENDOR}
+      - DB_ADDR=${MAS_DB_URL}
+      - DB_DATABASE=${MAS_DB_NAME}
+      - DB_USER=${MSS_DB_USER}
+      - DB_SCHEMA=${MSS_DB_SCHEMA}
+      - DB_PASSWORD=${MSS_DB_PASS}
+      - KEYCLOAK_USER=${MAS_USER}
+      - KEYCLOAK_PASSWORD=${MAS_PASS}
+    ports:
+      - ${MAS_PORT}:8080
+    depends_on:
+      - postgres
+    expose:
+      - ${MAS_PORT}
+    depends_on:
+        - mss
+    networks:
+      - medic-network
+
+# Medic Portal Server - MPS
+  mps:
+    container_name: "mps"
+    image: tomcat:9.0.71-jdk17-temurin-focal
+    restart: always
+    environment:
+      - name=value
+    ports:
+      - ${MPS_PORT}:8080
+    depends_on:
+      - mss
+      - mas
+    networks:
+      - medic-network
+
+volumes:
+  mss:
+      driver: local
+
+networks:
+  medic-network:
